@@ -1,0 +1,84 @@
+// +build ignore
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"go/parser"
+	"go/token"
+	"os"
+	"strings"
+)
+
+type config struct {
+	Prefix      string
+	Output      string
+	Tags        []string
+	Types       []string
+	LineComment bool
+	Flags       bool
+}
+
+func main() {
+	os.Args = append(os.Args, "-type", "Foo")
+
+	cfg := parseArgs()
+	_ = cfg
+
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, "testdata", nil, parser.ParseComments)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	fmt.Println(pkgs)
+}
+
+// parseArgs reads commandline arguments.
+func parseArgs() *config {
+	var c config
+	var tags, types string
+
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage of stringer:")
+		fmt.Fprintln(os.Stderr, "	stringer [flags] -type T [directory]")
+		fmt.Fprintln(os.Stderr, "	stringer [flags] -type T files... # Must be a single package")
+		flag.PrintDefaults()
+	}
+
+	flag.BoolVar(&c.Flags, "flags", false, "treat the types as bit flags")
+	flag.BoolVar(&c.LineComment, "linecomment", false, "use line comment text as printed text when present")
+	flag.StringVar(&c.Output, "output", "", "output file name; default srcdir/<type>_string.go")
+	flag.StringVar(&tags, "tags", "", "comma-separated list of build tags to apply")
+	flag.StringVar(&c.Prefix, "trimprefix", "", "trim the prefix from the generated constant names")
+	flag.StringVar(&types, "type", "", "comma-separated list of type names; must be set")
+	flag.Parse()
+
+	c.Types = split(types)
+	c.Tags = split(tags)
+
+	if len(c.Types) == 0 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	return &c
+}
+
+// split splits v at commans and returns the result, minus empty entries.
+func split(v string) []string {
+	fields := strings.Split(v, ",")
+	for i := 0; i < len(fields); i++ {
+		v := strings.TrimSpace(fields[i])
+		if len(v) != 0 {
+			continue
+		}
+
+		copy(fields[i:], fields[i+1:])
+		fields = fields[:len(fields)-1]
+		i--
+	}
+	return fields
+}
