@@ -9,7 +9,7 @@ constants, this version also works with bit flag sets.
 For instance:
 
 ```go
-    type T byte
+    type T uint
 
     const (
         Foo T = 1 << iota
